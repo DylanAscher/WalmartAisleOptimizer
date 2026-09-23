@@ -23,3 +23,6 @@ pip install beautifulsoup4
 ```bash
 python WalmartOptimizer.py
 ```
+
+## THE STATUS:
+Right now, the only barrier I am facing is that the aisle info only shows when you select "Pickup" instead of "Shipping" in the Walmart app. If you happen to stumble across this repo and know how I can fix that, please let me know.
