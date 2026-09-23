@@ -1,4 +1,5 @@
-WalmartAisleOptimizer
+## WalmartAisleOptimizer
+A Python script sorting and obtaining the aisle from given Walmart products.
 
 ## THE PROBLEM:
 Walmart has no option to sort by aisle number, taking you from front to back. 
@@ -25,4 +26,4 @@ python WalmartOptimizer.py
 ```
 
 ## THE STATUS:
-Right now, the only barrier I am facing is that the aisle info only shows when you select "Pickup" instead of "Shipping" in the Walmart app. If you happen to stumble across this repo and know how I can fix that, please let me know.
+Right now, this will only work for the Ames Walmart on Duff (#4265). I have updated the code as so. Future commits will try to remedy this.

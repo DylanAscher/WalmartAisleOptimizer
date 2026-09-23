@@ -5,15 +5,14 @@ import requests
 import pandas as pd
 from bs4 import BeautifulSoup
 
-def user_info():
-    zip_code = input("Enter your zip code: ")
-    store_id = input("Enter your Walmart store ID: ")
-    return zip_code, store_id
-
 # Getting all Walmart Items #
 
 def get_walmart_items():
-    walmart_items = pd.read_csv("allWalmartItems.csv", usecols=["Title", "Pageurl"])
+    walmart_items = pd.read_csv(
+        "allWalmartItems.csv",
+        usecols=["Title", "Pageurl", "Aisle"],
+        dtype={"Aisle": "string"}
+    )
     walmart_items = walmart_items[walmart_items["Pageurl"].notnull()]
     walmart_items = walmart_items[walmart_items["Pageurl"] != ""]
     return walmart_items
@@ -39,7 +38,8 @@ def input_item():
             new_item_link = input(f"Now, please copy and past the link leading only up to the item ID. Stop at the question mark (eg. https://www.walmart.com/ip/Great-Value-White-Round-Top-Bread-Loaf-20-oz/10315355): ")
             new_row = pd.DataFrame({
                 "Pageurl": [new_item_link],
-                "Title": [new_item_name]
+                "Title": [new_item_name],
+                "Aisle": [pd.NA]
             })
             new_row.to_csv('allWalmartItems.csv', mode='a', index=False, header=False)
             print("Added! Please try again.")
@@ -51,6 +51,8 @@ def input_item():
 # Walmart Request Setup #
 
 def setup_session(zip_code, store_id):
+    zip_code = str(zip_code)
+    store_id = str(store_id)
     walmart_session = requests.Session()
 
     walmart_session.headers.update({
@@ -77,28 +79,47 @@ def setup_session(zip_code, store_id):
 # Getting the Items #
 
 def get_items_helper(item_url, walmart_session):
+    for row in pd.read_csv("allWalmartItems.csv", usecols=["Pageurl", "Aisle"]).itertuples():
+        if row.Pageurl == item_url and pd.notna(row.Aisle):
+            return row.Aisle
+
     if "?" not in item_url:
         item_url += "?intent=pickup"
     else:
         item_url += "&intent=pickup"
+        
     response = walmart_session.get(item_url)
     soup = BeautifulSoup(response.content, "html.parser")
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    
+    script_tag = soup.find("script", id="__NEXT_DATA__")
+    if script_tag and script_tag.string:
+        aisle_match = re.search(r'"aisle":\s*\[?"([^"]+)"\]?', script_tag.string, re.IGNORECASE)
+        if aisle_match:
+            return f"Aisle {aisle_match.group(1)}"
+            
     for tag in soup.find_all(True):
         if tag.name == "span" and "Aisle" in tag.text:
-            return(tag.text.strip())
+            return tag.text.strip()
             
-    return "No aisle found"
-        
+    aisle_fallback = input(f"Could not find the aisle for this item. Please go to {item_url} and manually enter the aisle: ")
+    return aisle_fallback
+
 def get_items(selected_items, walmart_session):
     items_with_aisles = []
     for item in selected_items.itertuples():
         aisle = get_items_helper(item.Pageurl, walmart_session)
+        aisle = re.sub(r"^Aisle\s+", "", aisle, flags=re.IGNORECASE).strip()
+        walmart_items = pd.read_csv(
+            "allWalmartItems.csv",
+            dtype={"Aisle": "string"}
+        )
+        walmart_items.loc[walmart_items["Pageurl"] == item.Pageurl, "Aisle"] = aisle
+        walmart_items.to_csv("allWalmartItems.csv", index=False)
         items_with_aisles.append((item.Title, aisle))
     for title, aisle in sorted(items_with_aisles, key=lambda item: item[1]):
         print(f"{title}: {aisle}")
 
 selected_items = input_item()
-zip_code, store_id = user_info()
-walmart_session = setup_session(zip_code, store_id)
+walmart_session = setup_session(50014, 4265)
 get_items(selected_items, walmart_session)
